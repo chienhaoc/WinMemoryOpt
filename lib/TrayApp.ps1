@@ -65,6 +65,8 @@ $resources = @{
         "BalloonBootEnabledText" = "Auto-start on boot enabled."
         "BalloonBootDisabled" = "Setting Updated"
         "BalloonBootDisabledText" = "Auto-start on boot disabled."
+        "BalloonHeavyTitle" = "Active Response: Heavy App Trimmed"
+        "BalloonHeavyText" = "Memory threshold reached. Aggressively trimmed: {0}"
         
         "TooltipUsage" = "Memory: {0}%`nThreshold: {1}% | Triggers: {2}"
         "TooltipPaused" = "Memory: {0}%`n(Monitoring Paused)"
@@ -83,6 +85,11 @@ $resources = @{
         "SettingsCancel" = "Cancel"
         "SettingsError" = "Input Error"
         "SettingsErrorText" = "Please enter a valid threshold between 1 and 100."
+        "DescAuto" = "Recommended: Intelligent Mode. Safely compresses app memory and clears standby caches for maximum yield."
+        "DescProcessWorkingSet" = "Safe: Process Working Set. Compresses idle memory of running apps to the pagefile without flushing system caches."
+        "DescSystemStandbyList" = "Aggressive: Standby List. Clears the Windows file cache. Frees massive RAM but may slightly increase disk reads on app launch."
+        "DescModifiedPageList" = "Extreme: Modified Page List. Forces unwritten modified pages to disk. Use when memory is critically exhausted."
+        "DescSystemWorkingSets" = "Global: System Working Sets. Unconditionally compresses memory for all system services. High yield, may cause stuttering."
         
         "MsgBootAlready" = "Windows Memory Optimizer is already running, please check the system tray icon."
         "MsgBootTitle" = "Program Already Running"
@@ -94,6 +101,12 @@ $resources = @{
         "LogBootEnable" = "Enabled auto-start via Registry Run key."
         "LogBootEnableSched" = "Enabled auto-start via Task Scheduler (Highest Privileges)."
         "LogBootDisable" = "Disabled auto-start on boot."
+        "MenuTrim" = "Targeted App Trimmer..."
+        "TrimTitle" = "Targeted App Trimmer"
+        "TrimDesc" = "Select specific high-memory applications to aggressively compress their memory footprint to disk."
+        "TrimRefresh" = "Refresh List"
+        "TrimExecute" = "Trim Selected"
+        "TrimSuccess" = "Successfully trimmed {0} selected process(es)."
     };
     "zh-TW" = @{
         "Title" = "Windows 記憶體最佳化"
@@ -125,6 +138,8 @@ $resources = @{
         "BalloonBootEnabledText" = "已啟用隨開機自動啟動功能。"
         "BalloonBootDisabled" = "設定成功"
         "BalloonBootDisabledText" = "已停用開機啟動功能。"
+        "BalloonHeavyTitle" = "即時壓制: 肥大程式已壓縮"
+        "BalloonHeavyText" = "記憶體達臨界點，已自動將以下巨獸程式壓縮回硬碟: {0}"
         
         "TooltipUsage" = "記憶體優化: {0}%`n門檻: {1}% | 釋放次數: {2}"
         "TooltipPaused" = "記憶體優化: {0}%`n(已暫停自動監控)"
@@ -143,6 +158,11 @@ $resources = @{
         "SettingsCancel" = "取消"
         "SettingsError" = "輸入錯誤"
         "SettingsErrorText" = "請輸入介於 1 到 100 之間的有效門檻數值。"
+        "DescAuto" = "推薦：智慧綜合模式。先壓縮應用程式記憶體，再清理系統備用快取，兼顧安全與最大釋放量。"
+        "DescProcessWorkingSet" = "安全：僅應用程式工作集。將目前執行中軟體的閒置記憶體壓縮回硬碟，不影響系統快取。"
+        "DescSystemStandbyList" = "激進：清理備用清單快取。強制清空系統為加速開啟程式而保留的快取，能釋放大量空間。"
+        "DescModifiedPageList" = "極限：強制寫入已修改分頁。將還沒存入硬碟的記憶體資料強制寫回，通常在記憶體極度枯竭時使用。"
+        "DescSystemWorkingSets" = "全域：清理系統工作集。無差別壓縮包含系統核心服務的記憶體，釋放量大但可能造成短暫卡頓。"
         
         "MsgBootAlready" = "Windows Memory Optimizer 已在執行中，請在右下角系統匣查看圖示。"
         "MsgBootTitle" = "程式已在執行中"
@@ -154,6 +174,12 @@ $resources = @{
         "LogBootEnable" = "已啟用隨開機啟動 (登錄表)。"
         "LogBootEnableSched" = "已啟用隨開機啟動 (工作排程最高權限)。"
         "LogBootDisable" = "已停用隨開機啟動。"
+        "MenuTrim" = "特定應用瘦身..."
+        "TrimTitle" = "特定應用記憶體瘦身"
+        "TrimDesc" = "勾選佔用過高記憶體的特定應用程式，手動強制將它們的閒置記憶體壓縮回硬碟。"
+        "TrimRefresh" = "重新整理"
+        "TrimExecute" = "瘦身勾選項"
+        "TrimSuccess" = "成功為 {0} 個選取的應用程式執行瘦身！"
     }
 }
 
@@ -314,7 +340,7 @@ function Set-StartOnBoot {
 function Show-SettingsForm {
     $settingsForm = New-Object System.Windows.Forms.Form
     $settingsForm.Text = Get-String "SettingsTitle"
-    $settingsForm.Size = New-Object System.Drawing.Size(320, 240)
+    $settingsForm.Size = New-Object System.Drawing.Size(320, 290)
     $settingsForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
     $settingsForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
     $settingsForm.MaximizeBox = $false
@@ -351,15 +377,29 @@ function Show-SettingsForm {
     $cmbMode.SelectedItem = $script:ReleaseMode
     [void]$settingsForm.Controls.Add($cmbMode)
 
+    $lblModeDesc = New-Object System.Windows.Forms.Label
+    $lblModeDesc.Location = New-Object System.Drawing.Point(20, 140)
+    $lblModeDesc.Size = New-Object System.Drawing.Size(260, 45)
+    $lblModeDesc.ForeColor = [System.Drawing.Color]::DimGray
+    [void]$settingsForm.Controls.Add($lblModeDesc)
+
+    $cmbMode.Add_SelectedIndexChanged({
+        $modeStr = "Desc" + $cmbMode.SelectedItem.ToString()
+        $lblModeDesc.Text = Get-String $modeStr
+    })
+    # Trigger event initially
+    $modeStrInit = "Desc" + $cmbMode.SelectedItem.ToString()
+    $lblModeDesc.Text = Get-String $modeStrInit
+
     $btnApply = New-Object System.Windows.Forms.Button
     $btnApply.Text = Get-String "SettingsApply"
-    $btnApply.Location = New-Object System.Drawing.Point(60, 150)
+    $btnApply.Location = New-Object System.Drawing.Point(60, 200)
     $btnApply.DialogResult = [System.Windows.Forms.DialogResult]::OK
     [void]$settingsForm.Controls.Add($btnApply)
 
     $btnCancel = New-Object System.Windows.Forms.Button
     $btnCancel.Text = Get-String "SettingsCancel"
-    $btnCancel.Location = New-Object System.Drawing.Point(170, 150)
+    $btnCancel.Location = New-Object System.Drawing.Point(170, 200)
     $btnCancel.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
     [void]$settingsForm.Controls.Add($btnCancel)
 
@@ -391,6 +431,88 @@ function Show-SettingsForm {
     }
     
     $settingsForm.Dispose()
+}
+
+
+# Targeted App Trimmer GUI Form
+function Show-ProcessTrimmerForm {
+    $trimForm = New-Object System.Windows.Forms.Form
+    $trimForm.Text = Get-String "TrimTitle"
+    $trimForm.Size = New-Object System.Drawing.Size(420, 360)
+    $trimForm.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    $trimForm.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::FixedDialog
+    $trimForm.MaximizeBox = $false
+    $trimForm.MinimizeBox = $false
+    $trimForm.ShowInTaskbar = $true
+
+    $lblInfo = New-Object System.Windows.Forms.Label
+    $lblInfo.Text = Get-String "TrimDesc"
+    $lblInfo.Location = New-Object System.Drawing.Point(10, 10)
+    $lblInfo.Size = New-Object System.Drawing.Size(380, 40)
+    [void]$trimForm.Controls.Add($lblInfo)
+
+    $listView = New-Object System.Windows.Forms.ListView
+    $listView.Location = New-Object System.Drawing.Point(10, 50)
+    $listView.Size = New-Object System.Drawing.Size(380, 200)
+    $listView.View = [System.Windows.Forms.View]::Details
+    $listView.FullRowSelect = $true
+    $listView.CheckBoxes = $true
+    [void]$listView.Columns.Add("Process Name", 180)
+    [void]$listView.Columns.Add("Memory (MB)", 100)
+    [void]$listView.Columns.Add("PID", 60)
+    [void]$trimForm.Controls.Add($listView)
+
+    $btnRefresh = New-Object System.Windows.Forms.Button
+    $btnRefresh.Text = Get-String "TrimRefresh"
+    $btnRefresh.Location = New-Object System.Drawing.Point(60, 270)
+    $btnRefresh.Size = New-Object System.Drawing.Size(120, 30)
+    
+    $btnTrim = New-Object System.Windows.Forms.Button
+    $btnTrim.Text = Get-String "TrimExecute"
+    $btnTrim.Location = New-Object System.Drawing.Point(220, 270)
+    $btnTrim.Size = New-Object System.Drawing.Size(120, 30)
+
+    [void]$trimForm.Controls.Add($btnRefresh)
+    [void]$trimForm.Controls.Add($btnTrim)
+
+    function Reload-ProcessList {
+        $listView.Items.Clear()
+        $procs = Get-HeavyProcesses -TopCount 15 -MinWorkingSetMB 100
+        foreach ($p in $procs) {
+            $item = New-Object System.Windows.Forms.ListViewItem($p.Name)
+            [void]$item.SubItems.Add($p.WorkingSetMB.ToString())
+            [void]$item.SubItems.Add($p.Id.ToString())
+            $item.Checked = $true
+            [void]$listView.Items.Add($item)
+        }
+    }
+
+    $btnRefresh.Add_Click({ Reload-ProcessList })
+
+    $btnTrim.Add_Click({
+        $trimmedCount = 0
+        $trimmedNames = @()
+        foreach ($item in $listView.Items) {
+            if ($item.Checked) {
+                $pid = [int]$item.SubItems[2].Text
+                $pName = $item.SubItems[0].Text
+                if ([WinMemoryOpt.MemoryHelper]::PurgeProcessWorkingSetById($pid)) {
+                    $trimmedCount++
+                    $trimmedNames += $pName
+                }
+            }
+        }
+        if ($trimmedCount -gt 0) {
+            $namesStr = $trimmedNames -join ", "
+            Write-OptLog "SUCCESS" "Targeted App Trimmer manually compressed $trimmedCount app(s): $namesStr"
+        }
+        [System.Windows.Forms.MessageBox]::Show(((Get-String "TrimSuccess") -f $trimmedCount), (Get-String "TrimTitle"), [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Information) | Out-Null
+        Reload-ProcessList
+    })
+
+    Reload-ProcessList
+    $trimForm.ShowDialog() | Out-Null
+    $trimForm.Dispose()
 }
 
 # Create Context Menu
@@ -467,6 +589,14 @@ $reinitItem.Add_Click({
     Update-Tooltip
 })
 [void]$contextMenu.Items.Add($reinitItem)
+
+# 5.5. Targeted Trimmer
+$trimItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$trimItem.Text = Get-String "MenuTrim"
+$trimItem.Add_Click({
+    Show-ProcessTrimmerForm
+})
+[void]$contextMenu.Items.Add($trimItem)
 
 # 6. Manual Release
 $releaseItem = New-Object System.Windows.Forms.ToolStripMenuItem
@@ -581,8 +711,33 @@ $uiTimer.Add_Tick({
 Update-Tooltip
 $uiTimer.Start()
 
+# Auto-close balloon helper
+$balloonTimer = New-Object System.Windows.Forms.Timer
+$balloonTimer.Add_Tick({
+    $balloonTimer.Stop()
+    if ($notifyIcon) {
+        $notifyIcon.Visible = $false
+        $notifyIcon.Visible = $true
+    }
+})
+
+function Show-AutoCloseBalloon {
+    param($DurationMs, $Title, $Text, $Icon)
+    $notifyIcon.ShowBalloonTip($DurationMs, $Title, $Text, $Icon)
+    if ($DurationMs -gt 0) {
+        $balloonTimer.Interval = $DurationMs
+        $balloonTimer.Stop()
+        $balloonTimer.Start()
+    }
+}
 # Run the Application Message Loop
 [System.Windows.Forms.Application]::Run()
+
+
+
+
+
+
 
 
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -155,6 +155,25 @@ namespace WinMemoryOpt
             return count;
         }
 
+        // Method 1.5: Empty working set of a specific process by ID
+        public static bool PurgeProcessWorkingSetById(int processId)
+        {
+            try
+            {
+                Process proc = Process.GetProcessById(processId);
+                bool success = SetProcessWorkingSetSize(proc.Handle, new IntPtr(-1), new IntPtr(-1));
+                if (!success)
+                {
+                    success = EmptyWorkingSet(proc.Handle);
+                }
+                return success;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         // Method 2: Purge standby lists (Undocumented API)
         public static uint PurgeStandbyList(bool lowPriorityOnly = false)
         {
@@ -238,3 +257,4 @@ namespace WinMemoryOpt
         }
     }
 }
+

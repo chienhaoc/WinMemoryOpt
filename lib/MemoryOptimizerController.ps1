@@ -35,6 +35,24 @@ function Write-OptLog {
     "[$timestamp] [$Level] $Message" | Out-File -FilePath $logPath -Append -Encoding utf8
 }
 
+function Get-HeavyProcesses {
+    param(
+        [int]$TopCount = 3,
+        [long]$MinWorkingSetMB = 500
+    )
+    # Get processes actively consuming more than MinWorkingSetMB
+    $processes = Get-Process | Where-Object { ($_.WorkingSet64 / 1MB) -gt $MinWorkingSetMB } | Sort-Object WorkingSet64 -Descending | Select-Object -First $TopCount
+    $results = @()
+    foreach ($p in $processes) {
+        $results += [PSCustomObject]@{
+            Name = $p.ProcessName
+            Id = $p.Id
+            WorkingSetMB = [Math]::Round($p.WorkingSet64 / 1MB, 2)
+        }
+    }
+    return $results
+}
+
 function Invoke-MemoryRelease {
     param (
         [string]$Mode = "Auto"
@@ -49,6 +67,13 @@ function Invoke-MemoryRelease {
 
     $success = $true
     $details = ""
+
+    # Real-Time Active Response Strategy: Detect and log heavy apps before trimming
+    $heavyProcs = Get-HeavyProcesses -TopCount 3 -MinWorkingSetMB 500
+    if ($heavyProcs.Count -gt 0) {
+        $heavyProcNames = ($heavyProcs | ForEach-Object { "$($_.Name) ($($_.WorkingSetMB) MB)" }) -join ", "
+        Write-OptLog "WARN" "Active Response: Detected heavy applications running: $heavyProcNames. Preparing aggressive trim."
+    }
 
     try {
         switch ($Mode) {
@@ -102,6 +127,7 @@ function Invoke-MemoryRelease {
             Details = $details
             UsageBefore = $percentageUsageBefore
             UsageAfter = $percentageUsageAfter
+            HeavyApps = if ($heavyProcs.Count -gt 0) { $heavyProcNames } else { $null }
         }
     }
     catch {
@@ -112,9 +138,12 @@ function Invoke-MemoryRelease {
             Details = "Error: $_"
             UsageBefore = 0
             UsageAfter = 0
+            HeavyApps = $null
         }
     }
 }
+
+
 
 
 
