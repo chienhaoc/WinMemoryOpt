@@ -1,4 +1,4 @@
-param (
+﻿param (
     [string]$ConfigPath = "$((Split-Path -Parent $PSScriptRoot))\config.json"
 )
 
@@ -22,7 +22,7 @@ if (Test-Path $ConfigPath) {
         EventLogDays = 7
         PollIntervalSeconds = 5
     }
-    $config | ConvertTo-Json | Out-File $ConfigPath
+    $config | ConvertTo-Json | Out-File $ConfigPath -Encoding utf8
 }
 
 # -----------------------------------------------------------------------------
@@ -177,11 +177,7 @@ $script:MonitoringActive = $true
 # Write startup log
 Write-OptLog "INFO" ((Get-String "LogStart") -f $script:CurrentThreshold, $script:ReleaseMode)
 
-# Create Form (hidden window to keep UI thread running)
-$form = New-Object System.Windows.Forms.Form
-$form.ShowInTaskbar = $false
-$form.WindowState = [System.Windows.Forms.FormWindowState]::Minimized
-$form.Visible = $false
+# Create Form is not needed for a NotifyIcon-only app, removing hidden form.
 
 # Helper to generate a dynamic memory percentage icon
 $script:LastIconHandle = [IntPtr]::Zero
@@ -289,7 +285,7 @@ function Set-StartOnBoot {
         try {
             $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
             if ($isAdmin) {
-                $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File '$((Split-Path -Parent $PSScriptRoot))\MemoryOptimizer.ps1'"
+                $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$((Split-Path -Parent $PSScriptRoot))\MemoryOptimizer.ps1`" -Background"
                 $trigger = New-ScheduledTaskTrigger -AtLogOn
                 $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
                 $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
@@ -302,7 +298,7 @@ function Set-StartOnBoot {
             # Fallback to Registry Run Key
         }
         
-        Set-ItemProperty -Path $regPath -Name $taskName -Value "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File '$((Split-Path -Parent $PSScriptRoot))\MemoryOptimizer.ps1'"
+        Set-ItemProperty -Path $regPath -Name $taskName -Value "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$((Split-Path -Parent $PSScriptRoot))\MemoryOptimizer.ps1`" -Background"
         Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue | Out-Null
         Write-OptLog "INFO" (Get-String "LogBootEnable")
         return $true
@@ -379,7 +375,7 @@ function Show-SettingsForm {
 
             $config.Threshold = $script:CurrentThreshold
             $config.Mode = $script:ReleaseMode
-            $config | ConvertTo-Json | Out-File $ConfigPath -Force
+            $config | ConvertTo-Json | Out-File $ConfigPath -Force -Encoding utf8
 
             Write-OptLog "INFO" "Configuration updated via UI. Threshold: $script:CurrentThreshold%, Mode: $script:ReleaseMode"
             
@@ -524,8 +520,7 @@ $exitItem.Add_Click({
     if ($script:LastIconHandle -ne [IntPtr]::Zero) {
         [void][WinMemoryOpt.MemoryHelper]::DestroyIconHandle($script:LastIconHandle)
     }
-    $form.Close()
-    $form.Dispose()
+    # Form is no longer needed
     [System.Windows.Forms.Application]::Exit()
 })
 [void]$contextMenu.Items.Add($exitItem)
@@ -567,7 +562,7 @@ function Register-WmiEventTrigger {
         }
         Update-Tooltip
     }
-    Register-MemoryWmiEvent -ThresholdPercent $script:CurrentThreshold -Action $actionBlock
+    Register-MemoryWmiEvent -ThresholdPercent $script:CurrentThreshold -Action $actionBlock | Out-Null
 }
 
 # Register WMI Event Trigger if monitoring active
@@ -586,6 +581,10 @@ $uiTimer.Add_Tick({
 Update-Tooltip
 $uiTimer.Start()
 
-# Run the Form Application
-[System.Windows.Forms.Application]::Run($form)
+# Run the Application Message Loop
+[System.Windows.Forms.Application]::Run()
+
+
+
+
 

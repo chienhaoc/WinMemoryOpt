@@ -20,6 +20,8 @@
 - **設定管理視窗 (GUI)**：右鍵選單直接開啟設定對話框，即時調整門檻值與釋放模式並寫入設定。
 - **日誌滾動 (Log Rotation)**：詳細記錄所有動作至 `memory_opt.log`，當日誌大小超過 **2MB** 時自動備份滾動，防止檔案無限增長。
 - **防重疊執行**：採用系統級具名 `Mutex` 鎖，若偵測到重複執行會彈出警告提示並自動關閉新實例。
+- **背景自動脫離 (Auto-Detach)**：當您在終端機執行 `MemoryOptimizer.ps1` 時，程式會自動偵測並生成一個隱藏的背景子程序來常駐，同時立刻將終端機的使用權還給您。
+- **企業級基礎設施 (Enterprise-Grade)**：內建 `Install.ps1` 一鍵安裝腳本、GitHub Actions CI/CD 自動化流水線（包含靜態語法分析與自動打包 Release），以及完善的開源社群治理文件 (貢獻指南、Issue Templates 等)。
 
 ---
 
@@ -27,11 +29,14 @@
 
 ```text
 WinMemoryOpt/
-├── MemoryOptimizer.ps1       # 主程式引導進入點與 Mutex 防重疊鎖
+├── Install.ps1               # 一鍵安裝與反安裝腳本
+├── MemoryOptimizer.ps1       # 主程式引導進入點、Mutex 鎖與背景脫離啟動器
 ├── test_runner.ps1           # 單元與整合功能驗證腳本
 ├── LICENSE                   # MIT 授權條款
 ├── README.md                 # 英文說明文件
 ├── README.zh-TW.md           # 繁體中文說明文件
+├── CHANGELOG.md              # 專案版本更新日誌
+├── .github/                  # CI/CD 工作流程、Issue 表單模板與貢獻指南
 └── lib/
     ├── MemoryRelease.cs      # C# P/Invoke 宣告與 Windows 權限調整 helper
     ├── MemoryOptimizerController.ps1 # 記憶體優化控制與日誌滾動邏輯
@@ -44,12 +49,21 @@ WinMemoryOpt/
 
 ## 快速開始
 
-### 啟動最佳化工具
-打開 PowerShell 終端機並執行以下指令：
+### 自動安裝 (推薦做法)
+對著 `Install.ps1` 點擊滑鼠右鍵並選擇 **用 PowerShell 執行**（或在終端機中以系統管理員身分執行）。
+它會自動：
+1. 將應用程式部署至 `C:\Program Files\WinMemoryOpt`。
+2. 在「開始功能表」建立應用程式捷徑。
+3. 自動啟動並常駐於系統匣中。
+
+*若要解除安裝，只需執行 `.\Install.ps1 -Uninstall` 即可。*
+
+### 手動快速啟動
+打開 PowerShell 終端機並執行：
 ```powershell
-Powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ".\MemoryOptimizer.ps1"
+.\MemoryOptimizer.ps1
 ```
-*(使用 `-WindowStyle Hidden` 可使主控台視窗隱藏，讓程式安靜地常駐在背景執行)*
+*(主程式具備 **背景自動脫離** 功能，它會安靜地在背景產生常駐行程，並立刻將終端機畫面還給您)*
 
 ### 執行權限說明
 WinMemoryOpt 相容於**系統管理員**與**一般使用者**權限：

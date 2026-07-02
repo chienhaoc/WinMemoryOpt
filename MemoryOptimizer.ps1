@@ -1,4 +1,13 @@
-﻿# Windows Memory Optimizer startup entrypoint
+﻿param (
+    [switch]$Background
+)
+
+if (-not $Background) {
+    Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -Background" -WindowStyle Hidden
+    exit
+}
+
+# Windows Memory Optimizer startup entrypoint
 
 # Prevent duplicate executions using a system-wide Mutex
 $createdNew = $false
@@ -43,7 +52,7 @@ if (Test-Path $configPath) {
         EventLogDays = $eventLogDays
         PollIntervalSeconds = 5
     }
-    $config | ConvertTo-Json | Out-File $configPath
+    $config | ConvertTo-Json | Out-File $configPath -Encoding utf8
 }
 
 # 1. Analyze Event Logs
@@ -62,10 +71,14 @@ if ($analysis.HeavyApps) {
 
 # Update config with recommended threshold
 $config.Threshold = $analysis.RecommendedThreshold
-$config | ConvertTo-Json | Out-File $configPath -Force
+$config | ConvertTo-Json | Out-File $configPath -Force -Encoding utf8
 
 Write-OptLog "INFO" "Configuration updated. Starting System Tray UI..."
 
 # 2. Launch Tray App
 . (Join-Path $libPath "TrayApp.ps1") -ConfigPath $configPath
+
+
+
+
 

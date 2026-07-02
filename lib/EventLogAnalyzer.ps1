@@ -1,12 +1,10 @@
-function Analyze-MemoryLogs {
+﻿function Analyze-MemoryLogs {
     param (
         [int]$Days = 7,
         [int]$DefaultThreshold = 80
     )
 
-    $logPath = "$((Split-Path -Parent $PSScriptRoot))\memory_opt.log"
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    "[$timestamp] [INFO] Starting Windows Event Log analysis..." | Out-File -FilePath $logPath -Append
+    Write-OptLog "INFO" "Starting Windows Event Log analysis..."
 
     $heavyApps = @{}
     $warningsCount = 0
@@ -23,7 +21,7 @@ function Analyze-MemoryLogs {
 
         if ($events) {
             $warningsCount = $events.Count
-            "[$timestamp] [INFO] Found $warningsCount low-memory warnings in the last $Days days." | Out-File -FilePath $logPath -Append
+            Write-OptLog "INFO" "Found $warningsCount low-memory warnings in the last $Days days."
 
             foreach ($event in $events) {
                 $message = $event.Message
@@ -42,10 +40,10 @@ function Analyze-MemoryLogs {
                 }
             }
         } else {
-            "[$timestamp] [INFO] No Windows Resource-Exhaustion-Detector warnings found in the last $Days days." | Out-File -FilePath $logPath -Append
+            Write-OptLog "INFO" "No Windows Resource-Exhaustion-Detector warnings found in the last $Days days."
         }
     } catch {
-        "[$timestamp] [WARN] Could not read Windows Event Logs (might require Administrator privileges). Using default threshold logic." | Out-File -FilePath $logPath -Append
+        Write-OptLog "WARN" "Could not read Windows Event Logs (might require Administrator privileges). Using default threshold logic."
     }
 
     # Analyze physical memory size to adjust threshold
@@ -54,18 +52,18 @@ function Analyze-MemoryLogs {
     $freeMemoryGB = [Math]::Round($osInfo.FreePhysicalMemory / 1MB, 2)
     $currentUsagePercent = [Math]::Round((($osInfo.TotalVisibleMemorySize - $osInfo.FreePhysicalMemory) / $osInfo.TotalVisibleMemorySize) * 100, 2)
 
-    "[$timestamp] [INFO] Current physical memory usage: $currentUsagePercent% ($freeMemoryGB GB free of $totalMemoryGB GB total)" | Out-File -FilePath $logPath -Append
+    Write-OptLog "INFO" "Current physical memory usage: $currentUsagePercent% ($freeMemoryGB GB free of $totalMemoryGB GB total)"
 
     # If we have low-memory warnings, set a more aggressive threshold
     if ($warningsCount -gt 5) {
         $threshold = 75
-        "[$timestamp] [INFO] High frequency of low-memory warnings. Recommending aggressive threshold: $threshold%" | Out-File -FilePath $logPath -Append
+        Write-OptLog "INFO" "High frequency of low-memory warnings. Recommending aggressive threshold: $threshold%"
     } elseif ($warningsCount -gt 0) {
         $threshold = 80
-        "[$timestamp] [INFO] Low-memory warnings detected. Recommending threshold: $threshold%" | Out-File -FilePath $logPath -Append
+        Write-OptLog "INFO" "Low-memory warnings detected. Recommending threshold: $threshold%"
     } else {
         $threshold = $DefaultThreshold
-        "[$timestamp] [INFO] System appears stable. Recommending default threshold: $threshold%" | Out-File -FilePath $logPath -Append
+        Write-OptLog "INFO" "System appears stable. Recommending default threshold: $threshold%"
     }
 
     # Format heavy apps output for report
@@ -91,5 +89,9 @@ function Analyze-MemoryLogs {
         HeavyApps = $heavyAppsReport
     }
 }
+
+
+
+
 
 

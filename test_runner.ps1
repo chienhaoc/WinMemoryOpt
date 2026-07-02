@@ -1,4 +1,4 @@
-# Memory Optimizer Test Runner and Verification
+﻿# Memory Optimizer Test Runner and Verification
 
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $libPath = Join-Path $scriptPath "lib"
@@ -144,3 +144,7 @@ if ($successAll) {
     Write-Host "SOME TESTS FAILED. Please review output." -ForegroundColor Red
 }
 Write-Host "=============================================" -ForegroundColor Cyan
+
+
+
+

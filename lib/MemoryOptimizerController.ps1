@@ -1,4 +1,4 @@
-$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+﻿$scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $csPath = Join-Path $scriptPath "MemoryRelease.cs"
 
 # Compile P/Invoke type if not already loaded
@@ -115,5 +115,9 @@ function Invoke-MemoryRelease {
         }
     }
 }
+
+
+
+
 
 

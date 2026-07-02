@@ -20,6 +20,8 @@ A lightweight, PowerShell-wrapped background memory optimization utility for Win
 - **Settings GUI**: Modify the threshold and release mode directly from a native Windows Form dialog.
 - **Log Rotation**: Logs all activities to `memory_opt.log`, automatically rotating and backing up when file size exceeds 2MB.
 - **Duplicate Prevention**: Implements a system-wide named `Mutex` to prevent running duplicate instances.
+- **Auto-Detach Execution**: Running `MemoryOptimizer.ps1` automatically detects the environment and spawns a detached background process, returning control to your terminal immediately.
+- **Enterprise-Grade Infrastructure**: Includes a 1-click `Install.ps1` setup script, a full GitHub Actions CI/CD pipeline (Linting & Auto-Releases), and Community Health standard files (Issue Templates, Contributing Guidelines).
 
 ---
 
@@ -27,11 +29,14 @@ A lightweight, PowerShell-wrapped background memory optimization utility for Win
 
 ```text
 WinMemoryOpt/
-├── MemoryOptimizer.ps1       # Main entry point & Mutex guard
+├── Install.ps1               # 1-Click Installation & Uninstallation script
+├── MemoryOptimizer.ps1       # Main entry point, Mutex guard & Auto-Detach launcher
 ├── test_runner.ps1           # Unit & integration verification script
 ├── LICENSE                   # MIT License
 ├── README.md                 # English documentation
 ├── README.zh-TW.md           # Traditional Chinese documentation
+├── CHANGELOG.md              # Project version history
+├── .github/                  # CI/CD Workflows, Issue Templates & Contributing Guidelines
 └── lib/
     ├── MemoryRelease.cs      # C# P/Invoke signatures & privilege helpers
     ├── MemoryOptimizerController.ps1 # Optimization logic & log rotation
@@ -44,12 +49,21 @@ WinMemoryOpt/
 
 ## Quick Start
 
-### Running the Optimizer
-Open a PowerShell console and execute the following command:
+### Installation (Recommended)
+Simply right-click `Install.ps1` and select **Run with PowerShell** (or run it as Administrator in a console).
+It will automatically:
+1. Copy the application to `C:\Program Files\WinMemoryOpt`.
+2. Create a Start Menu shortcut.
+3. Launch the background system tray app.
+
+*To uninstall, simply run `.\Install.ps1 -Uninstall`.*
+
+### Manual Quick Start
+Open a PowerShell console and execute:
 ```powershell
-Powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File ".\MemoryOptimizer.ps1"
+.\MemoryOptimizer.ps1
 ```
-*(Using `-WindowStyle Hidden` launches the tray app silently in the background without keeping a console window open).*
+*(The script features **Auto-Detach**. It will silently spawn a hidden background process and return your terminal prompt instantly.)*
 
 ### Permissions Note
 WinMemoryOpt runs smoothly under both **Administrator** and **Standard User** accounts:
