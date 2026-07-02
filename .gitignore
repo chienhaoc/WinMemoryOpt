@@ -1,0 +1,16 @@
+# User configurations
+config.json
+
+# Runtime log files
+memory_opt.log
+memory_opt.log.bak
+*.log
+
+# Editor configurations
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.suo
