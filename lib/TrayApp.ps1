@@ -107,6 +107,14 @@ $resources = @{
         "TrimRefresh" = "Refresh List"
         "TrimExecute" = "Trim Selected"
         "TrimSuccess" = "Successfully trimmed {0} selected process(es)."
+        "MenuFocusMode" = "🚀 Enable Focus Mode"
+        "MenuFocusModeOff" = "🛑 Disable Focus Mode"
+        "FocusStarting" = "Focus Mode Starting"
+        "FocusStartingText" = "Focus Mode will activate in 5 seconds. Please switch to your game/app now!"
+        "FocusEnabled" = "Focus Mode Enabled"
+        "FocusEnabledText" = "Protected foreground app. Suppressed {0} background apps."
+        "FocusDisabled" = "Focus Mode Disabled"
+        "FocusDisabledText" = "Restored CPU priority for {0} background apps."
     };
     "zh-TW" = @{
         "Title" = "Windows 記憶體最佳化"
@@ -180,6 +188,14 @@ $resources = @{
         "TrimRefresh" = "重新整理"
         "TrimExecute" = "瘦身勾選項"
         "TrimSuccess" = "成功為 {0} 個選取的應用程式執行瘦身！"
+        "MenuFocusMode" = "🚀 啟用遊戲/專注模式"
+        "MenuFocusModeOff" = "🛑 解除遊戲/專注模式"
+        "FocusStarting" = "準備啟動專注模式"
+        "FocusStartingText" = "專注模式將於 5 秒後啟動，請立即切換至您想加速的遊戲/軟體視窗！"
+        "FocusEnabled" = "專注模式已啟動"
+        "FocusEnabledText" = "已鎖定前景視窗！並強制壓制了 {0} 個背景耗能程式。"
+        "FocusDisabled" = "專注模式已解除"
+        "FocusDisabledText" = "已恢復 {0} 個背景程式的正常 CPU 優先權。"
     }
 }
 
@@ -199,6 +215,8 @@ $script:CurrentThreshold = $config.Threshold
 $script:ReleaseMode = $config.Mode
 $script:LastTriggerTime = $null
 $script:MonitoringActive = $true
+$script:FocusModeActive = $false
+$script:SuppressedPids = @()
 
 # Write startup log
 Write-OptLog "INFO" ((Get-String "LogStart") -f $script:CurrentThreshold, $script:ReleaseMode)
@@ -498,9 +516,9 @@ function Show-ProcessTrimmerForm {
         $trimmedNames = @()
         foreach ($item in $listView.Items) {
             if ($item.Checked) {
-                $pid = [int]$item.SubItems[2].Text
+                $targetPid = [int]$item.SubItems[2].Text
                 $pName = $item.SubItems[0].Text
-                if ([WinMemoryOpt.MemoryHelper]::PurgeProcessWorkingSetById($pid)) {
+                if ([WinMemoryOpt.MemoryHelper]::PurgeProcessWorkingSetById($targetPid)) {
                     $trimmedCount++
                     $trimmedNames += $pName
                 }
@@ -601,6 +619,67 @@ $trimItem.Add_Click({
     Show-ProcessTrimmerForm
 })
 [void]$contextMenu.Items.Add($trimItem)
+
+# 5.6 Focus Mode (Delayed Trigger)
+$focusItem = New-Object System.Windows.Forms.ToolStripMenuItem
+$focusItem.Text = Get-String "MenuFocusMode"
+$focusItem.Add_Click({
+    if ($script:FocusModeActive) {
+        # Disable Focus Mode
+        $restoredCount = 0
+        foreach ($targetPid in $script:SuppressedPids) {
+            if ([WinMemoryOpt.MemoryHelper]::SetEfficiencyMode($targetPid, $false)) {
+                $restoredCount++
+            }
+        }
+        $script:SuppressedPids = @()
+        $script:FocusModeActive = $false
+        $focusItem.Text = Get-String "MenuFocusMode"
+        Write-OptLog "INFO" "Focus Mode Disabled. Restored $restoredCount apps."
+        $notifyIcon.ShowBalloonTip(3000, (Get-String "FocusDisabled"), ((Get-String "FocusDisabledText") -f $restoredCount), [System.Windows.Forms.ToolTipIcon]::Info)
+    } else {
+        # Start 5s countdown
+        Write-OptLog "INFO" "Focus Mode countdown started."
+        $notifyIcon.ShowBalloonTip(5000, (Get-String "FocusStarting"), (Get-String "FocusStartingText"), [System.Windows.Forms.ToolTipIcon]::Warning)
+        
+        $script:focusTimer = New-Object System.Windows.Forms.Timer
+        $script:focusTimer.Interval = 5000
+        $script:focusTimer.Add_Tick({
+            $script:focusTimer.Stop()
+            $script:focusTimer.Dispose()
+            
+            # 1. Get Foreground PID
+            $fgPid = [WinMemoryOpt.MemoryHelper]::GetForegroundProcessId()
+            
+            # 2. Get heavy background apps
+            $heavyApps = Get-HeavyProcesses -TopCount 10 -MinWorkingSetMB 150
+            $suppressedCount = 0
+            $script:SuppressedPids = @()
+            
+            foreach ($app in $heavyApps) {
+                # Protect foreground app and ourself
+                if ($app.Id -ne $fgPid -and $app.Id -ne $PID) {
+                    # Trim Memory
+                    [WinMemoryOpt.MemoryHelper]::PurgeProcessWorkingSetById($app.Id) | Out-Null
+                    # Apply Efficiency Mode
+                    if ([WinMemoryOpt.MemoryHelper]::SetEfficiencyMode($app.Id, $true)) {
+                        $script:SuppressedPids += $app.Id
+                        $suppressedCount++
+                    }
+                }
+            }
+            
+            $script:FocusModeActive = $true
+            $focusItem.Text = Get-String "MenuFocusModeOff"
+            Write-OptLog "INFO" "Focus Mode Activated! Suppressed $suppressedCount apps. Protected Foreground PID: $fgPid"
+            $notifyIcon.ShowBalloonTip(3000, (Get-String "FocusEnabled"), ((Get-String "FocusEnabledText") -f $suppressedCount), [System.Windows.Forms.ToolTipIcon]::Info)
+        })
+        $script:focusTimer.Start()
+    }
+})
+[void]$contextMenu.Items.Add($focusItem)
+
+[void]$contextMenu.Items.Add("-")
 
 # 6. Manual Release
 $releaseItem = New-Object System.Windows.Forms.ToolStripMenuItem
@@ -742,6 +821,12 @@ function Show-AutoCloseBalloon {
 }
 # Run the Application Message Loop
 [System.Windows.Forms.Application]::Run()
+
+
+
+
+
+
 
 
 

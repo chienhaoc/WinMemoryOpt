@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -40,6 +40,27 @@ namespace WinMemoryOpt
 
         [DllImport("user32.dll", SetLastError = true)]
         public static extern bool DestroyIcon(IntPtr hIcon);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll", SetLastError = true)]
+        public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct PROCESS_POWER_THROTTLING_STATE {
+            public uint Version;
+            public uint ControlMask;
+            public uint StateMask;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool SetProcessInformation(
+            IntPtr hProcess,
+            int ProcessInformationClass,
+            ref PROCESS_POWER_THROTTLING_STATE ProcessInformation,
+            uint ProcessInformationSize
+        );
 
         [DllImport("advapi32.dll", SetLastError = true)]
         public static extern bool OpenProcessToken(
@@ -255,6 +276,48 @@ namespace WinMemoryOpt
         {
             return DestroyIcon(hIcon);
         }
+
+        // Feature: Set Process Efficiency Mode (EcoQoS + Idle Priority)
+        public static bool SetEfficiencyMode(int processId, bool enable)
+        {
+            try
+            {
+                Process proc = Process.GetProcessById(processId);
+                PROCESS_POWER_THROTTLING_STATE state = new PROCESS_POWER_THROTTLING_STATE();
+                state.Version = 1; // PROCESS_POWER_THROTTLING_CURRENT_VERSION
+                state.ControlMask = 1; // PROCESS_POWER_THROTTLING_EXECUTION_SPEED
+                state.StateMask = enable ? 1u : 0u;
+
+                bool result = SetProcessInformation(proc.Handle, 4, ref state, (uint)Marshal.SizeOf(state));
+                
+                // Always adjust priority as well
+                if (enable) {
+                    if (proc.PriorityClass != ProcessPriorityClass.Idle) {
+                        proc.PriorityClass = ProcessPriorityClass.Idle;
+                    }
+                } else {
+                    if (proc.PriorityClass == ProcessPriorityClass.Idle) {
+                        proc.PriorityClass = ProcessPriorityClass.Normal;
+                    }
+                }
+                return result;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+        
+        // Feature: Get current foreground process ID
+        public static int GetForegroundProcessId()
+        {
+            IntPtr hWnd = GetForegroundWindow();
+            if (hWnd == IntPtr.Zero) return 0;
+            uint processId;
+            GetWindowThreadProcessId(hWnd, out processId);
+            return (int)processId;
+        }
     }
 }
+
 
