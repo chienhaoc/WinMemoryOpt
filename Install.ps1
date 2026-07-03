@@ -6,6 +6,7 @@
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
     Write-Warning "Please run this script as Administrator."
+    Start-Process powershell.exe -Verb RunAs -ArgumentList "-ExecutionPolicy Bypass -File `"$PSCommandPath`""
     exit
 }
 
@@ -37,21 +38,52 @@ Write-Host "Installing WinMemoryOpt..."
 if (-not (Test-Path $installDir)) {
     New-Item -Path $installDir -ItemType Directory | Out-Null
 }
-Copy-Item -Path "$PSScriptRoot\*" -Destination $installDir -Recurse -Force -Exclude "Install.ps1", ".git", ".github"
+Copy-Item -Path "$PSScriptRoot\*" -Destination $installDir -Recurse -Force -Exclude "Install.ps1", ".git", ".github", "Create-Shortcut.ps1"
 
-# 2. Create Start Menu Shortcut
+# Check if EXE exists, otherwise fallback to PS1
+$exePath = Join-Path $installDir "WinMemoryOpt.exe"
+$hasExe = Test-Path $exePath
+
+# 2. Configure UAC-Bypass Scheduled Task
+Write-Host "Configuring Scheduled Task for UAC bypass..."
+$taskName = "WindowsMemoryOptimizer"
+if ($hasExe) {
+    $action = New-ScheduledTaskAction -Execute $exePath
+} else {
+    $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installDir\MemoryOptimizer.ps1`" -Background"
+}
+$trigger = New-ScheduledTaskTrigger -AtLogOn
+$principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
+$settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Days 0) -MultipleInstances IgnoreNew
+Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+
+# 3. Create UAC-Bypassed Shortcuts
 $WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut($shortcutPath)
-$Shortcut.TargetPath = "powershell.exe"
-$Shortcut.Arguments = "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installDir\MemoryOptimizer.ps1`""
-$Shortcut.WorkingDirectory = $installDir
-$Shortcut.WindowStyle = 7 # Minimized
-$Shortcut.IconLocation = "shell32.dll,22" # Default system icon (gears)
-$Shortcut.Save()
 
-# 3. Launch App to initialize registry/scheduled tasks
+# Start Menu Shortcut
+$smShortcut = $WshShell.CreateShortcut($shortcutPath)
+$smShortcut.TargetPath = "schtasks.exe"
+$smShortcut.Arguments = "/run /tn `"$taskName`""
+$smShortcut.WindowStyle = 7
+$smShortcut.IconLocation = "C:\Windows\System32\taskmgr.exe,0"
+$smShortcut.Save()
+
+# Desktop Shortcut
+$desktopPath = [Environment]::GetFolderPath("Desktop")
+$dtShortcut = $WshShell.CreateShortcut((Join-Path $desktopPath "WinMemory Optimizer.lnk"))
+$dtShortcut.TargetPath = "schtasks.exe"
+$dtShortcut.Arguments = "/run /tn `"$taskName`""
+$dtShortcut.WindowStyle = 7
+$dtShortcut.IconLocation = "C:\Windows\System32\taskmgr.exe,0"
+$dtShortcut.Save()
+
+# 4. Launch App
 Write-Host "Launching WinMemoryOpt to finalize setup..."
-Start-Process powershell.exe -ArgumentList "-ExecutionPolicy Bypass -WindowStyle Hidden -File `"$installDir\MemoryOptimizer.ps1`"" -WindowStyle Hidden
+schtasks /run /tn $taskName | Out-Null
 
-Write-Host "Installation complete! The optimizer is now running in the system tray." -ForegroundColor Green
+Write-Host "Installation complete! The optimizer is now running quietly in the system tray." -ForegroundColor Green
+
+
+
+
 

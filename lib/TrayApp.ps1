@@ -68,12 +68,12 @@ $resources = @{
         "BalloonHeavyTitle" = "Active Response: Heavy App Trimmed"
         "BalloonHeavyText" = "Memory threshold reached. Aggressively trimmed: {0}"
         
-        "TooltipUsage" = "Memory: {0}%`nThreshold: {1}% | Triggers: {2}"
-        "TooltipPaused" = "Memory: {0}%`n(Monitoring Paused)"
-        "TooltipUsageCompact" = "Opt: {0}% | Threshold: {1}% | Count: {2}"
+        "TooltipUsage" = "RAM: {0}% | VM: {1}%`nThreshold: {2}% | Triggers: {3}"
+        "TooltipPaused" = "RAM: {0}% | VM: {1}%`n(Monitoring Paused)"
+        "TooltipUsageCompact" = "R:{0}% V:{1}% | T:{2}% | C:{3}"
         
         "StatsTitle" = "System Memory Status"
-        "StatsText" = "Current Statistics:`n---------------------`nThreshold: {0}%`nMemory Usage: {1}% ({2} GB Free / {3} GB Total)`nAuto Release Count: {4} times`nRelease Mode: {5}`nMonitoring State: {6}"
+        "StatsText" = "Current Statistics:`n---------------------`nThreshold: {0}%`nRAM Usage: {1}% ({2} GB Free / {3} GB Total)`nVM Usage: {4}% ({5} GB Free / {6} GB Total)`nAuto Release Count: {7} times`nRelease Mode: {8}`nMonitoring State: {9}"
         
         "StateActive" = "Monitoring"
         "StatePaused" = "Paused"
@@ -141,12 +141,12 @@ $resources = @{
         "BalloonHeavyTitle" = "即時壓制: 肥大程式已壓縮"
         "BalloonHeavyText" = "記憶體達臨界點，已自動將以下巨獸程式壓縮回硬碟: {0}"
         
-        "TooltipUsage" = "記憶體優化: {0}%`n門檻: {1}% | 釋放次數: {2}"
-        "TooltipPaused" = "記憶體優化: {0}%`n(已暫停自動監控)"
-        "TooltipUsageCompact" = "優化中: {0}% | 門檻: {1}% | 次數: {2}"
+        "TooltipUsage" = "RAM: {0}% | 虛擬: {1}%`n門檻: {2}% | 次數: {3}"
+        "TooltipPaused" = "RAM: {0}% | 虛擬: {1}%`n(已暫停自動監控)"
+        "TooltipUsageCompact" = "R:{0}% V:{1}% | 門:{2}% | 次:{3}"
         
         "StatsTitle" = "系統記憶體狀態"
-        "StatsText" = "目前統計資訊：`n---------------------`n目前的門檻臨界值: {0}%`n目前的記憶體使用率: {1}% ({2} GB 空閒 / {3} GB 總計)`n自動記憶體釋放累積次數: {4} 次`n目前的釋放模式: {5}`n自動監控狀態: {6}"
+        "StatsText" = "目前統計資訊：`n---------------------`n目前的門檻臨界值: {0}%`nRAM 使用率: {1}% ({2} GB 空閒 / {3} GB 總計)`n虛擬記憶體: {4}% ({5} GB 空閒 / {6} GB 總計)`n自動記憶體釋放次數: {7} 次`n目前的釋放模式: {8}`n自動監控狀態: {9}"
         
         "StateActive" = "監控中"
         "StatePaused" = "已暫停監控"
@@ -279,14 +279,18 @@ function Update-Tooltip {
     $os = Get-CimInstance Win32_OperatingSystem
     $currentUsage = [Math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 1)
     
+    $totalVM = $os.TotalVirtualMemorySize
+    $freeVM = $os.FreeVirtualMemory
+    $vmUsage = [Math]::Round((($totalVM - $freeVM) / $totalVM) * 100, 1)
+    
     if (-not $script:MonitoringActive) {
-        $text = (Get-String "TooltipPaused") -f $currentUsage
+        $text = (Get-String "TooltipPaused") -f $currentUsage, $vmUsage
     } else {
-        $text = (Get-String "TooltipUsage") -f $currentUsage, $script:CurrentThreshold, $script:TriggerCount
+        $text = (Get-String "TooltipUsage") -f $currentUsage, $vmUsage, $script:CurrentThreshold, $script:TriggerCount
     }
     
     if ($text.Length -gt 63) {
-        $text = (Get-String "TooltipUsageCompact") -f $currentUsage, $script:CurrentThreshold, $script:TriggerCount
+        $text = (Get-String "TooltipUsageCompact") -f $currentUsage, $vmUsage, $script:CurrentThreshold, $script:TriggerCount
     }
     
     $notifyIcon.Text = $text
@@ -666,9 +670,15 @@ $notifyIcon.Add_DoubleClick({
     $freeGB = [Math]::Round($os.FreePhysicalMemory / 1MB, 2)
     $totalGB = [Math]::Round($os.TotalVisibleMemorySize / 1MB, 2)
     
+    $totalVM = $os.TotalVirtualMemorySize
+    $freeVM = $os.FreeVirtualMemory
+    $vmUsage = [Math]::Round((($totalVM - $freeVM) / $totalVM) * 100, 1)
+    $freeVMGB = [Math]::Round($freeVM / 1MB, 2)
+    $totalVMGB = [Math]::Round($totalVM / 1MB, 2)
+    
     $statusStr = if ($script:MonitoringActive) { Get-String "StateActive" } else { Get-String "StatePaused" }
     
-    $msg = (Get-String "StatsText") -f $script:CurrentThreshold, $currentUsage, $freeGB, $totalGB, $script:TriggerCount, $script:ReleaseMode, $statusStr
+    $msg = (Get-String "StatsText") -f $script:CurrentThreshold, $currentUsage, $freeGB, $totalGB, $vmUsage, $freeVMGB, $totalVMGB, $script:TriggerCount, $script:ReleaseMode, $statusStr
     
     $notifyIcon.ShowBalloonTip(5000, (Get-String "StatsTitle"), $msg, [System.Windows.Forms.ToolTipIcon]::Info)
 })
@@ -732,6 +742,10 @@ function Show-AutoCloseBalloon {
 }
 # Run the Application Message Loop
 [System.Windows.Forms.Application]::Run()
+
+
+
+
 
 
 

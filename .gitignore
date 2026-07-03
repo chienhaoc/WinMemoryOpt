@@ -14,3 +14,5 @@ memory_opt.log.bak
 *.njsproj
 *.sln
 *.suo
+
+WinMemoryOpt.exe
