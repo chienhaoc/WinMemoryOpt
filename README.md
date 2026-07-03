@@ -14,6 +14,8 @@ A lightweight, PowerShell-wrapped background memory optimization utility for Win
   - **Process Working Set Trimming** (Public Win32 API): Iterates and trims the working sets of processes.
   - **Standby Memory List Purging** (Undocumented NT API): Clears system standby caches.
   - **Modified Page List Flushing** (Undocumented NT API): Flushes modified pages to disk.
+- **1-Click Focus/Gaming Mode**: Provides a delayed 5-second trigger to lock onto your foreground app, automatically aggressively compressing the memory of resource-heavy background apps (e.g., Chrome, Discord) and applying Windows 11's **EcoQoS Efficiency Mode** (Power Throttling) to squeeze out maximum CPU/RAM performance for your game or intensive work.
+- **Targeted App Trimmer**: A real-time leaderboard of high-consuming background apps inside the Settings dialog, allowing you to precision-trim memory for a single out-of-control application with one click.
 - **WMI-Based Auto Trigger**: Automated memory release triggers when usage exceeds the calculated threshold, complete with cooldown guards.
 - **i18n & Log Scanning**: Dynamically parses English and Traditional Chinese Windows Event Logs (Event ID `2004`) at startup to identify heavy apps and recommend threshold levels. Auto-localizes UI to system language.
 - **Auto-Start on Boot**: Supports registering via Task Scheduler with highest privileges (if run as Admin) or falling back to Registry Run keys (if run as standard user).
