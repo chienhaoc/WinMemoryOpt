@@ -143,6 +143,78 @@ function Invoke-MemoryRelease {
     }
 }
 
+function Invoke-DecisionEngine {
+    # 5. Health Gate (健康狀態閘門)
+    $os = Get-CimInstance Win32_OperatingSystem
+    $totalMem = $os.TotalVisibleMemorySize
+    $freeMem = $os.FreePhysicalMemory
+    $currentUsagePercent = [Math]::Round((($totalMem - $freeMem) / $totalMem) * 100, 2)
+    
+    if ($currentUsagePercent -lt 60) {
+        Write-OptLog "DEBUG" "Logic -> Memory usage is below 60% ($currentUsagePercent%). Healthy state, action aborted."
+        return $false
+    }
+    
+    # 3. Dynamic Defense Posture (防禦姿態分級)
+    $defensePosture = "Standard"
+    if ($script:WarningsCount -gt 5) { $defensePosture = "Aggressive" }
+    elseif ($script:WarningsCount -gt 0) { $defensePosture = "Guarded" }
+    
+    Write-OptLog "INFO" "Logic -> Triggered Optimization. Defense Posture: $defensePosture. Current Usage: $currentUsagePercent%"
+    
+    # 2. Universal Foreground App Protection (全模式前景保護)
+    $fgPid = [WinMemoryOpt.MemoryHelper]::GetForegroundProcessId()
+    $fgProc = $null
+    if ($fgPid -gt 0) {
+        try { $fgProc = Get-Process -Id $fgPid -ErrorAction SilentlyContinue } catch {}
+        if ($fgProc) {
+            Write-OptLog "INFO" "Action -> Protecting foreground app: $($fgProc.Name) (PID: $fgPid)"
+        }
+    }
+
+    # 1. Per-Process API Selection (分級式 API 策略引擎) & 4. Decision Audit Trail (決策審計日誌)
+    $heavyProcs = Get-HeavyProcesses -TopCount 10 -MinWorkingSetMB 200
+    
+    # Known bad actors db (BadAppsDB)
+    $badApps = @("chrome", "msedge", "devenv", "Code", "Discord", "Teams")
+    
+    foreach ($p in $heavyProcs) {
+        if ($fgProc -and $p.Id -eq $fgProc.Id) {
+            Write-OptLog "INFO" "Action -> Skipped: $($p.Name) (PID: $($p.Id)) | Rule: Foreground App Protection"
+            continue
+        }
+        
+        if ($badApps -contains $p.Name) {
+            # Heavy suppression for known memory hogs
+            [WinMemoryOpt.MemoryHelper]::PurgeProcessWorkingSetById($p.Id) | Out-Null
+            Write-OptLog "INFO" "Action -> Suppressing: $($p.Name) (PID: $($p.Id)) | Rule: Matched BadAppsDB (Currently $($p.WorkingSetMB) MB)"
+        } else {
+            # Gentle trimming for normal heavy apps
+            try {
+                $proc = Get-Process -Id $p.Id -ErrorAction SilentlyContinue
+                if ($proc) {
+                    [WinMemoryOpt.MemoryHelper]::EmptyWorkingSet($proc.Handle) | Out-Null
+                    Write-OptLog "INFO" "Action -> Micro-optimizing: $($p.Name) (PID: $($p.Id)) | Rule: WorkingSet > 200MB (Currently $($p.WorkingSetMB) MB)"
+                }
+            } catch {}
+        }
+    }
+
+    # Finally, purge global OS cache
+    $statusStandby = [WinMemoryOpt.MemoryHelper]::PurgeStandbyList($false)
+    Write-OptLog "INFO" "Action -> Purging OS Cache | Rule: Defense Posture Sweep. Standby status: 0x$($statusStandby.ToString("X"))"
+    
+    $osAfter = Get-CimInstance Win32_OperatingSystem
+    $memAfter = $osAfter.FreePhysicalMemory / 1KB
+    $saved = [Math]::Round($memAfter - ($freeMem / 1KB), 2)
+    Write-OptLog "SUCCESS" "Decision Engine completed. Reclaimed: $saved MB."
+    
+    return [PSCustomObject]@{
+        Success = $true
+        ReclaimedMB = $saved
+    }
+}
+
 
 
 

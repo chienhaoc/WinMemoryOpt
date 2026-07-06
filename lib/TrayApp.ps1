@@ -560,7 +560,7 @@ $monitorItem.Add_Click({
         Write-OptLog "INFO" (Get-String "LogWmiResume")
         $notifyIcon.ShowBalloonTip(2000, (Get-String "BalloonMonitorEnabled"), (Get-String "BalloonMonitorEnabledText"), [System.Windows.Forms.ToolTipIcon]::Info)
     } else {
-        Unregister-MemoryWmiEvent
+        $script:MonitoringActive = $false
         Write-OptLog "INFO" (Get-String "LogWmiPause")
         $notifyIcon.ShowBalloonTip(2000, (Get-String "BalloonMonitorDisabled"), (Get-String "BalloonMonitorDisabledText"), [System.Windows.Forms.ToolTipIcon]::Info)
     }
@@ -727,7 +727,7 @@ $exitItem.Text = Get-String "MenuExit"
 $exitItem.Add_Click({
     Write-OptLog "INFO" (Get-String "LogExit")
     $uiTimer.Stop()
-    Unregister-MemoryWmiEvent
+    $script:MonitoringActive = $false
     $notifyIcon.Visible = $false
     $notifyIcon.Dispose()
     if ($script:LastIconHandle -ne [IntPtr]::Zero) {
@@ -764,36 +764,30 @@ $notifyIcon.Add_DoubleClick({
 
 $notifyIcon.Visible = $true
 
-# Helper to register WMI Trigger
-function Register-WmiEventTrigger {
-    $actionBlock = {
-        # Check if we triggered too recently to prevent endless loop triggers (cooldown of 30 seconds)
-        $now = Get-Date
-        if ($script:LastTriggerTime -and ($now - $script:LastTriggerTime).TotalSeconds -lt 30) {
-            return
-        }
-        $script:LastTriggerTime = $now
-
-        $res = Invoke-MemoryRelease -Mode $script:ReleaseMode
-        if ($res.Success) {
-            $script:TriggerCount++
-            $notifyIcon.ShowBalloonTip(4000, (Get-String "BalloonWmiTitle"), ((Get-String "BalloonWmiText") -f $script:CurrentThreshold, $res.ReclaimedMB), [System.Windows.Forms.ToolTipIcon]::Info)
-        }
-        Update-Tooltip
-    }
-    Register-MemoryWmiEvent -ThresholdPercent $script:CurrentThreshold -Action $actionBlock | Out-Null
-}
-
-# Register WMI Event Trigger if monitoring active
-if ($script:MonitoringActive) {
-    Register-WmiEventTrigger
-}
+# The decision engine now runs inside the UI timer to avoid WinForms blocking PowerShell event queues.
 
 # Timer just for updating UI Tooltip every 5 seconds
 $uiTimer = New-Object System.Windows.Forms.Timer
 $uiTimer.Interval = $config.PollIntervalSeconds * 1000
 $uiTimer.Add_Tick({
     Update-Tooltip
+    
+    if ($script:MonitoringActive) {
+        $now = Get-Date
+        if (-not $script:LastTriggerTime -or ($now - $script:LastTriggerTime).TotalSeconds -ge 30) {
+            # Check threshold
+            $os = Get-CimInstance Win32_OperatingSystem
+            $currentUsagePercent = [Math]::Round((($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / $os.TotalVisibleMemorySize) * 100, 2)
+            if ($currentUsagePercent -ge $script:CurrentThreshold) {
+                $script:LastTriggerTime = $now
+                $res = Invoke-DecisionEngine
+                if ($res.Success) {
+                    $script:TriggerCount++
+                    $notifyIcon.ShowBalloonTip(4000, (Get-String "BalloonWmiTitle"), ((Get-String "BalloonWmiText") -f $script:CurrentThreshold, $res.ReclaimedMB), [System.Windows.Forms.ToolTipIcon]::Info)
+                }
+            }
+        }
+    }
 })
 
 # Initial setup

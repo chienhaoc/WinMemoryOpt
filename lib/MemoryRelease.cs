@@ -47,6 +47,18 @@ namespace WinMemoryOpt
         [DllImport("user32.dll", SetLastError = true)]
         public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
+        public static uint GetForegroundWindowPID()
+        {
+            IntPtr hWnd = GetForegroundWindow();
+            if (hWnd != IntPtr.Zero)
+            {
+                uint pid;
+                GetWindowThreadProcessId(hWnd, out pid);
+                return pid;
+            }
+            return 0;
+        }
+
         [StructLayout(LayoutKind.Sequential)]
         public struct PROCESS_POWER_THROTTLING_STATE {
             public uint Version;

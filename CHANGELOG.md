@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-06
+
+### Added
+- **Smart Decision Engine**: Replaced the previous basic trigger with a sophisticated `DecisionEngine` that runs safely within the UI thread to bypass WMI event blocking.
+- **Per-Process API Selection**: Implemented a `BadAppsDB` list. Known memory hogs (Chrome, Edge, VS Code, Discord, Teams) are aggressively suppressed, while standard apps receive gentle trimming.
+- **Universal Foreground Protection**: The engine now actively detects and skips the foreground application using `GetForegroundProcessId()`, guaranteeing zero stutter during active use.
+- **Dynamic Defense Posture**: The system now dynamically shifts between `Standard`, `Guarded`, and `Aggressive` postures based on historical crash counts from Windows Event Logs.
+- **Decision Audit Trail**: The log file now provides structured reasoning for every action (e.g., `Action -> Suppressing: chrome.exe | Rule: Matched BadAppsDB`).
+- **Health Gate**: Added a hard 60% memory usage gate inside the decision logic to completely eliminate edge-case oscillation and event storms.
+
+### Fixed
+- **Critical Blocking Bug**: Fixed an issue where the WMI `__InstanceModificationEvent` was successfully detecting memory spikes but the action block was permanently suspended by the `[System.Windows.Forms.Application]::Run()` UI loop. The trigger mechanism now uses the synchronous UI timer.
+
 ## [1.0.0] - 2026-07-04
 
 ### Added
