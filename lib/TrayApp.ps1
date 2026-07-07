@@ -442,7 +442,7 @@ function Show-SettingsForm {
             Write-OptLog "INFO" "Configuration updated via UI. Threshold: $script:CurrentThreshold%, Mode: $script:ReleaseMode"
             
             if ($script:MonitoringActive) {
-                Register-WmiEventTrigger
+                Register-MemoryWmiEvent
             }
 
             $notifyIcon.ShowBalloonTip(3000, (Get-String "SettingsTitle"), ((Get-String "BalloonReinitText") -f $script:CurrentThreshold, 0), [System.Windows.Forms.ToolTipIcon]::Info)
@@ -556,7 +556,7 @@ $monitorItem.Add_Click({
     $script:MonitoringActive = -not $script:MonitoringActive
     $this.Checked = $script:MonitoringActive
     if ($script:MonitoringActive) {
-        Register-WmiEventTrigger
+        Register-MemoryWmiEvent
         Write-OptLog "INFO" (Get-String "LogWmiResume")
         $notifyIcon.ShowBalloonTip(2000, (Get-String "BalloonMonitorEnabled"), (Get-String "BalloonMonitorEnabledText"), [System.Windows.Forms.ToolTipIcon]::Info)
     } else {
@@ -603,7 +603,7 @@ $reinitItem.Add_Click({
     $script:CurrentThreshold = $analysis.RecommendedThreshold
     
     if ($script:MonitoringActive) {
-        Register-WmiEventTrigger
+        Register-MemoryWmiEvent
     }
     
     Write-OptLog "INFO" "Reinitialized. New Threshold set to: $script:CurrentThreshold%"
