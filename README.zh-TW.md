@@ -1,6 +1,6 @@
 # Windows 記憶體最佳化工具 (WinMemoryOpt)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](#)
 
 這是一個以 PowerShell 包裝的 Windows 背景輕量化記憶體最佳化工具。它常駐於系統匣，透過 WMI 監控系統實體記憶體，並結合 Win32 公開 API 與 Windows NT 未公開系統 API 進行多模式的記憶體釋放。
@@ -34,7 +34,7 @@ WinMemoryOpt/
 ├── Install.ps1               # 一鍵安裝與反安裝腳本
 ├── MemoryOptimizer.ps1       # 主程式引導進入點、Mutex 鎖與背景脫離啟動器
 ├── test_runner.ps1           # 單元與整合功能驗證腳本
-├── LICENSE                   # MIT 授權條款
+├── LICENSE                   # Apache 2.0 授權條款
 ├── README.md                 # 英文說明文件
 ├── README.zh-TW.md           # 繁體中文說明文件
 ├── CHANGELOG.md              # 專案版本更新日誌
@@ -84,5 +84,5 @@ WinMemoryOpt 相容於**系統管理員**與**一般使用者**權限：
 
 ## 授權條款
 
-本專案基於 MIT 授權條款開源 - 詳見 [LICENSE](LICENSE) 檔案。
+本專案基於 Apache License 2.0 授權條款開源 - 詳見 [LICENSE](LICENSE) 檔案。
 

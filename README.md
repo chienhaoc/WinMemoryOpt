@@ -1,6 +1,6 @@
 # Windows Memory Optimizer (WinMemoryOpt)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows-blue.svg)](#)
 
 A lightweight, PowerShell-wrapped background memory optimization utility for Windows. It runs quietly in the system tray, monitors physical memory via WMI, and reclaims memory using both documented Win32 APIs and undocumented Windows NT system APIs.
@@ -34,7 +34,7 @@ WinMemoryOpt/
 ├── Install.ps1               # 1-Click Installation & Uninstallation script
 ├── MemoryOptimizer.ps1       # Main entry point, Mutex guard & Auto-Detach launcher
 ├── test_runner.ps1           # Unit & integration verification script
-├── LICENSE                   # MIT License
+├── LICENSE                   # Apache License 2.0
 ├── README.md                 # English documentation
 ├── README.zh-TW.md           # Traditional Chinese documentation
 ├── CHANGELOG.md              # Project version history
@@ -84,5 +84,5 @@ WinMemoryOpt runs smoothly under both **Administrator** and **Standard User** ac
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENSE) file for details.
 
