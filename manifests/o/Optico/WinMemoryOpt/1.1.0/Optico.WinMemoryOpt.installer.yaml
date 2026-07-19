@@ -1,0 +1,13 @@
+﻿PackageIdentifier: Optico.WinMemoryOpt
+PackageVersion: 1.1.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: WinMemoryOpt.exe
+    PortableCommandAlias: winmemopt
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/chienhaoc/WinMemoryOpt/releases/download/v1.1.0/WinMemoryOpt.zip
+    InstallerSha256: CB7EC711D0F420757EE49D36DBA9E2ACF42BB4015C332ADCF231406B0F92271C
+ManifestType: installer
+ManifestVersion: 1.5.0

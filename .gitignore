@@ -16,3 +16,9 @@ memory_opt.log.bak
 *.suo
 
 WinMemoryOpt.exe
+
+# Build output and zip releases
+WinMemoryOpt.zip
+dist/
+test-manifests/
+
