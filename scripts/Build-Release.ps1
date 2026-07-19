@@ -87,24 +87,7 @@ ManifestVersion: 1.5.0
 "@
 [System.IO.File]::WriteAllText((Join-Path $manifestsDir "Optico.WinMemoryOpt.locale.en-US.yaml"), $localeEnYaml)
 
-# 7.3 Locale zh-TW Manifest
-$localeZhYaml = @"
-PackageIdentifier: Optico.WinMemoryOpt
-PackageVersion: 1.1.0
-PackageLocale: zh-TW
-Publisher: Optico
-PublisherUrl: https://github.com/chienhaoc/WinMemoryOpt
-Author: chchen
-PackageName: WinMemoryOpt (記憶體最佳化工具)
-PackageUrl: https://github.com/chienhaoc/WinMemoryOpt
-License: Apache-2.0
-ShortDescription: 輕量且智慧的 Windows 後台記憶體自動釋放與最佳化工具。
-ManifestType: locale
-ManifestVersion: 1.5.0
-"@
-[System.IO.File]::WriteAllText((Join-Path $manifestsDir "Optico.WinMemoryOpt.locale.zh-TW.yaml"), $localeZhYaml)
-
-# 7.4 Installer Manifest (contains the dynamic SHA256)
+# 7.3 Installer Manifest (contains the dynamic SHA256)
 $installerYaml = @"
 PackageIdentifier: Optico.WinMemoryOpt
 PackageVersion: 1.1.0
@@ -121,14 +104,6 @@ ManifestType: installer
 ManifestVersion: 1.5.0
 "@
 [System.IO.File]::WriteAllText((Join-Path $manifestsDir "Optico.WinMemoryOpt.installer.yaml"), $installerYaml)
-
-# Add UTF-8 BOM to satisfy PowerShell 5.1 and WinGet YAML scanners
-foreach ($file in Get-ChildItem $manifestsDir -Filter *.yaml) {
-    $bytes = [System.IO.File]::ReadAllBytes($file.FullName)
-    if ($bytes[0] -ne 0xEF -or $bytes[1] -ne 0xBB -or $bytes[2] -ne 0xBF) {
-        [System.IO.File]::WriteAllBytes($file.FullName, [byte[]](0xEF,0xBB,0xBF) + $bytes)
-    }
-}
 
 Write-Host "Manifests generated successfully at $manifestsDir" -ForegroundColor Green
 Write-Host "Build complete!" -ForegroundColor Green
